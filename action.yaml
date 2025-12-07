@@ -1,6 +1,5 @@
-# Replace `<OWNER>/<REPO>` with this action’s repository, and `<TOOL>` / `<HOOK_ID>` with the actual tool and hook name for the concrete action.
-name: "Run <TOOL> via pre-commit + reviewdog"
-description: "Runs <HOOK_ID> pre-commit hook on a diff range and reports via reviewdog"
+name: "Run core pre-commit hooks + reviewdog diff"
+description: "Runs one or more pre-commit hooks on a ref range and, if fixes occur, posts the diff via reviewdog"
 author: "leinardi"
 branding:
   icon: "check-circle"
@@ -16,11 +15,24 @@ inputs:
   github-token:
     description: "GitHub token for reviewdog (usually secrets.GITHUB_TOKEN)"
     required: true
+  hooks:
+    description: |
+      Newline-separated list of pre-commit hook IDs to run.
+      If not set, a sensible default set of core hooks is used.
+    required: false
+    default: |
+      check-merge-conflict
+      end-of-file-fixer
+      trailing-whitespace
+      check-yaml
+      check-json
+      check-toml
+      check-added-large-files
 
 outputs:
   exitcode:
-    description: "Exit code of the <HOOK_ID> pre-commit hook"
-    value: ${{ steps.run_hook.outputs.exitcode }}
+    description: "Non-zero if any hook failed or modified files"
+    value: ${{ steps.pre_commit_hooks.outputs.exitcode }}
 
 runs:
   using: "composite"
@@ -42,44 +54,57 @@ runs:
       with:
         reviewdog_version: latest
 
-    # TODO: customize this step for your specific hook and parsing logic
-    - name: Run <HOOK_ID> pre-commit hook
-      id: run_hook
+    - name: Run core pre-commit hooks
+      id: pre_commit_hooks
       shell: bash
+      env:
+        HOOKS_INPUT: ${{ inputs.hooks }}
       run: |
         set +e
         set -o pipefail
 
-        # Run the specific pre-commit hook on the diff range
-        pre-commit run <HOOK_ID> \
-          --hook-stage manual \
-          --from-ref "${{ inputs.from-ref }}" \
-          --to-ref   "${{ inputs.to-ref }}" \
-          --color=never \
-          | tee hook-output.txt
+        exitcode=0
 
-        exitcode=${PIPESTATUS[0]}
+        # Read hooks from the multi-line input; ignore empty lines and comments (# ...)
+        echo "$HOOKS_INPUT" | while IFS= read -r hook; do
+          hook="${hook#"${hook%%[![:space:]]*}"}"   # trim leading spaces
+          hook="${hook%"${hook##*[![:space:]]}"}"   # trim trailing spaces
+          [[ -z "$hook" ]] && continue
+          [[ "$hook" =~ ^# ]] && continue
+
+          echo "::group::Running pre-commit hook: $hook"
+          pre-commit run "$hook" \
+            --from-ref "${{ inputs.from-ref }}" \
+            --to-ref   "${{ inputs.to-ref }}"
+          rc=$?
+          echo "::endgroup::"
+
+          [[ $rc -ne 0 ]] && exitcode=1
+        done
+
+        # Capture any fixes as a diff (even if hooks didn't error but fixed files)
+        git diff > pre-commit-hooks.diff || true
+
         echo "exitcode=$exitcode" >> "$GITHUB_OUTPUT"
+
         # Do not fail here; let reviewdog decide
         exit 0
 
-    - name: Report findings via reviewdog
-      if: steps.run_hook.outputs.exitcode != '0'
+    - name: Report pre-commit fixes via reviewdog
+      if: steps.pre_commit_hooks.outputs.exitcode != '0'
       env:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ inputs.github-token }}
+      continue-on-error: true
       shell: bash
       run: |
-        # TODO: adapt this part to match your tool's output format and efm
-        # For example, you might need to transform hook-output.txt lines
-        # into reviewdog's %t:%f:%l:%c:%m format.
+        reviewdog \
+          -name="pre-commit (fixes)" \
+          -f=diff \
+          -f.diff.strip=1 \
+          -reporter=github-pr-review \
+          -filter-mode=nofilter < pre-commit-hooks.diff
 
-        cat hook-output.txt \
-          | reviewdog \
-              -efm="%f:%l:%c: %m" \
-              -name="<TOOL>" \
-              -reporter=github-pr-review \
-              -filter-mode=nofilter \
-              -fail-level=info
-
-        # Fail the job if there were violations
-        exit 1
+    - name: Fail on pre-commit issues
+      if: steps.pre_commit_hooks.outputs.exitcode != '0'
+      shell: bash
+      run: exit 1
