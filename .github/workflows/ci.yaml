@@ -35,7 +35,8 @@ jobs:
           fetch-depth: 0
 
       - name: Run pre-commit hooks + reviewdog diff
-        uses: leinardi/gha-pre-commit-hooks-reviewdog@v1
+        # Use the local action from this repo/branch
+        uses: ./
         with:
           from-ref: ${{ github.event.pull_request.base.sha }}
           to-ref: ${{ github.event.pull_request.head.sha }}
