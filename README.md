@@ -1,4 +1,4 @@
-# Run core pre-commit hooks + reviewdog diff
+# Run pre-commit hooks + reviewdog diff
 
 This GitHub Action runs one or more [`pre-commit`](https://pre-commit.com/) hooks on a ref range and, if any of them fail or modify files, posts the
 resulting diff to the pull request as a review using [reviewdog](https://github.com/reviewdog/reviewdog).
@@ -53,8 +53,8 @@ You need:
 You can override the default list and provide your own set of hooks:
 
 ```yaml
-      - name: Run core pre-commit hooks + reviewdog diff
-        uses: leinardi/gha-pre-commit-core-hooks-reviewdog@v1
+      - name: Run pre-commit hooks + reviewdog diff
+        uses: leinardi/gha-pre-commit-hooks-reviewdog@v1
         with:
           from-ref: ${{ github.event.pull_request.base.sha }}
           to-ref: ${{ github.event.pull_request.head.sha }}
@@ -84,7 +84,7 @@ The action will:
 Basic example for pull requests using the **default** hook list:
 
 ```yaml
-name: Core pre-commit hooks
+name: pre-commit hooks
 
 on:
   pull_request:
@@ -99,8 +99,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run core pre-commit hooks + reviewdog diff
-        uses: leinardi/gha-pre-commit-core-hooks-reviewdog@v1
+      - name: Run pre-commit hooks + reviewdog diff
+        uses: leinardi/gha-pre-commit-hooks-reviewdog@v1
         with:
           from-ref: ${{ github.event.pull_request.base.sha }}
           to-ref: ${{ github.event.pull_request.head.sha }}
@@ -119,11 +119,11 @@ This will:
 It’s recommended to pin to the major version:
 
 ```yaml
-uses: leinardi/gha-pre-commit-core-hooks-reviewdog@v1
+uses: leinardi/gha-pre-commit-hooks-reviewdog@v1
 ```
 
 For fully reproducible behavior, pin to an exact tag:
 
 ```yaml
-uses: leinardi/gha-pre-commit-core-hooks-reviewdog@v1.0.0
+uses: leinardi/gha-pre-commit-hooks-reviewdog@v1.0.0
 ```
