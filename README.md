@@ -90,7 +90,7 @@ on:
   pull_request:
 
 jobs:
-  pre-commit-core:
+  pre-commit-hooks:
     runs-on: ubuntu-latest
 
     steps:
