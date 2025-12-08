@@ -1,4 +1,4 @@
-name: "Run core pre-commit hooks + reviewdog diff"
+name: "Run pre-commit hooks + reviewdog diff"
 description: "Runs one or more pre-commit hooks on a ref range and, if fixes occur, posts the diff via reviewdog"
 author: "leinardi"
 branding:
@@ -54,7 +54,7 @@ runs:
       with:
         reviewdog_version: latest
 
-    - name: Run core pre-commit hooks
+    - name: Run pre-commit hooks
       id: pre_commit_hooks
       shell: bash
       env:

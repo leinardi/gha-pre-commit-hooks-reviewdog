@@ -34,8 +34,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run core pre-commit hooks + reviewdog diff
-        uses: leinardi/gha-pre-commit-core-hooks-reviewdog@v1
+      - name: Run pre-commit hooks + reviewdog diff
+        uses: leinardi/gha-pre-commit-hooks-reviewdog@v1
         with:
           from-ref: ${{ github.event.pull_request.base.sha }}
           to-ref: ${{ github.event.pull_request.head.sha }}
